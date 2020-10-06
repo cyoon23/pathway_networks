@@ -5,11 +5,9 @@ from maayanlab_bioinformatics.harmonization import ncbi_genes
 
 def get_ensembl_id(ids):
     ids = "".join(ids)
-    ensembl = re.findall("Ensembl:(.*)", ids)
-    if (len(ensembl) == 1):
-        return ensembl[0]
-    else:
-        return None
+    ensembl = re.findall("Ensembl:([A-Z]*[0-9]{11})", ids)
+    if len(ensembl) > 0: return ensembl[0]
+    return None 
        
 
 def get_symbol(df): 
@@ -17,20 +15,20 @@ def get_symbol(df):
     Convert Ensembl ID to gene symbol for the index (column) of DataFrame.
     """
     ncbi = pd.DataFrame(ncbi_genes.ncbi_genes_fetch())
-    all_ids = ncbi.dbXrefs.values
-    ensembl_ids = [ get_ensembl_id(ids) for ids in all_ids]
-    ncbi = ncbi[["dbXrefs", "Symbol", "type_of_gene"]]
-    ncbi["ensembl"] = ensembl_ids
-    ncbi = ncbi.drop(columns=["dbXrefs"])
-    ncbi = ncbi.set_index("ensembl")
+    dbxrefs = ncbi.loc[:, 'dbXrefs']
+    symbols = ncbi.loc[:, 'Symbol']
+    eid_to_symbol = {}
+    for i in range(len(dbxrefs)): 
+        item = dbxrefs[i]
+        symbol = symbols[i]
+        ensembl = get_ensembl_id(item)
+        if ensembl: eid_to_symbol[ensembl] = symbol
     def id_to_symbol(key):
-        if (key in ensembl_to_symbol):
-            return ensembl_to_symbol[key]
+        if (key in eid_to_symbol):
+            return eid_to_symbol[key]
         else:
             return key
-    ensembl_to_symbol = ncbi.to_dict()["Symbol"]
     data_ensembl_ids = df.index.to_list()
     data_symbols = [ id_to_symbol(key) for key in data_ensembl_ids ]
     df.index = data_symbols
-    df.columns = data_symbols
     return df
