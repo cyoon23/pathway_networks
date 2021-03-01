@@ -14,6 +14,10 @@ def load_data(expression_path, libraries, gr_truth_path):
     return list_inputs, gr_truth
 
 def get_expression_data(expression_path): 
+    """ 
+    Get expression data from the file path, turn Ensembl number
+    indexing into gene symbols, normalize data. 
+    """
     f = pd.read_csv(expression_path)
     f.index = f.iloc[:, 0] # Make ENSG genes as row indexing 
     f = f.iloc[:, 1:] # Remove first index column 
@@ -24,6 +28,12 @@ def get_expression_data(expression_path):
     return norm 
 
 def get_binary_matrix(gene_expr, libraries):
+    """ 
+    Get binary matrix with genes as rows and pathways as columns. 
+    If a gene is found in a given pathway, it is given a value of
+    1. Else, 0. Only the list of genes in common between that found
+    in the gene set libraries and the current dataset are used. 
+    """
     function_to_genes = {}
     set_genes = set()
     for lib in libraries: 
@@ -46,11 +56,14 @@ def get_gr_truth(list_samples, gr_truth_path):
     return gr_truth
 
 def prepare_data(norm, binary_matrix):
-    # load the dataset
+    """ 
+    For each column of the expression matrix, multiply the 
+    smaller binary matrix by the common genes to get a matrix that is
+    basically the same as the binary matrix but with expression instead of
+    1's. This leads to a list of matrices.
+    """
     list_inputs = []
-    common_genes = set(binary_matrix.index) & set(norm.index)
-    bm = binary_matrix.loc[common_genes]
-    bm_tens = torch.tensor(bm.T.values)
+    bm_tens = torch.tensor(binary_matrix.T.values)
     for sample in norm.columns: 
         item = torch.mul(bm_tens, torch.tensor(norm.loc[common_genes, sample].values))
         list_inputs.append(np.array(item).astype(np.float32))
